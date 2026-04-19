@@ -5,74 +5,48 @@ import os
 import tempfile
 import io
 
-# Page config
 st.set_page_config(page_title="PDF Splitter", layout="centered")
 
-# Styling
-st.markdown("""
-    <style>
-    .block-container {
-        padding-top: 2rem;
-        text-align: center;
-    }
-    .upload-box {
-        border: 2px dashed #4CAF50;
-        padding: 30px;
-        border-radius: 10px;
-        background-color: #f9f9f9;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# Title
 st.title("📄 PDF Splitter")
-st.markdown("### Split je PDF in losse pagina’s + download als ZIP")
+st.write("Upload een PDF en download losse pagina’s + ZIP bestand.")
 st.markdown("---")
 
-# Upload
-st.markdown('<div class="upload-box">', unsafe_allow_html=True)
-uploaded_file = st.file_uploader("📤 Upload je PDF bestand", type=["pdf"])
-st.markdown('</div>', unsafe_allow_html=True)
+uploaded_file = st.file_uploader("Upload je PDF", type=["pdf"])
 
-# Processing
 if uploaded_file:
     with st.spinner("⏳ PDF wordt gesplitst..."):
         with tempfile.TemporaryDirectory() as temp_dir:
             input_path = os.path.join(temp_dir, uploaded_file.name)
 
-            # Save uploaded file
             with open(input_path, "wb") as f:
                 f.write(uploaded_file.read())
 
             reader = PdfReader(input_path)
             base_name = os.path.splitext(uploaded_file.name)[0]
 
-            split_files = []
+            pdf_buffers = []  # 👈 hier slaan we alles in geheugen op
 
             # Split PDF
             for i, page in enumerate(reader.pages):
                 writer = PdfWriter()
                 writer.add_page(page)
 
-                output_filename = f"{base_name}_page_{i+1}.pdf"
-                output_path = os.path.join(temp_dir, output_filename)
+                pdf_buffer = io.BytesIO()
+                writer.write(pdf_buffer)
+                pdf_buffer.seek(0)
 
-                with open(output_path, "wb") as f:
-                    writer.write(f)
+                filename = f"{base_name}_page_{i+1}.pdf"
+                pdf_buffers.append((filename, pdf_buffer))
 
-                split_files.append(output_path)
-
-            # Create ZIP in memory (FIXED!)
+            # ZIP maken in geheugen
             zip_buffer = io.BytesIO()
-
             with zipfile.ZipFile(zip_buffer, "w") as zipf:
-                for file in split_files:
-                    zipf.write(file, os.path.basename(file))
+                for filename, buffer in pdf_buffers:
+                    zipf.writestr(filename, buffer.getvalue())
 
             zip_buffer.seek(0)
 
-    st.success(f"✅ Klaar! {len(split_files)} pagina’s gesplitst.")
-    st.markdown("### ⬇️ Download je bestanden")
+    st.success(f"✅ Klaar! {len(pdf_buffers)} pagina’s gesplitst.")
 
     # ZIP download
     st.download_button(
@@ -83,14 +57,13 @@ if uploaded_file:
     )
 
     st.markdown("---")
-    st.markdown("### 📄 Of download losse pagina’s")
+    st.markdown("### 📄 Download losse pagina’s")
 
-    # Individual downloads
-    for file_path in split_files:
-        with open(file_path, "rb") as f:
-            st.download_button(
-                label=f"Download {os.path.basename(file_path)}",
-                data=f,
-                file_name=os.path.basename(file_path),
-                mime="application/pdf"
-            )
+    # Individuele downloads (nu uit geheugen)
+    for filename, buffer in pdf_buffers:
+        st.download_button(
+            label=f"Download {filename}",
+            data=buffer,
+            file_name=filename,
+            mime="application/pdf"
+        )

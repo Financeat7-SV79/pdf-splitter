@@ -5,16 +5,76 @@ import os
 import tempfile
 import io
 
-st.set_page_config(page_title="PDF Splitter", layout="centered")
+# Page config
+st.set_page_config(
+    page_title="PDF Splitter",
+    page_icon="📄",
+    layout="centered"
+)
 
+# Custom CSS (design upgrade)
+st.markdown("""
+<style>
+.main {
+    background-color: #f7f9fc;
+}
+
+.block-container {
+    max-width: 700px;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Title */
+h1 {
+    text-align: center;
+    font-weight: 700;
+}
+
+/* Subtitle */
+.subtitle {
+    text-align: center;
+    color: #555;
+    margin-bottom: 30px;
+}
+
+/* Upload box */
+.upload-box {
+    border: 2px dashed #4CAF50;
+    padding: 40px;
+    border-radius: 12px;
+    background-color: white;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Buttons */
+.stDownloadButton > button {
+    width: 100%;
+    border-radius: 8px;
+    height: 45px;
+    font-weight: 600;
+}
+
+/* Success box */
+.stAlert {
+    border-radius: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Header
 st.title("📄 PDF Splitter")
-st.write("Upload een PDF en download losse pagina’s + ZIP bestand.")
-st.markdown("---")
+st.markdown('<p class="subtitle">Split je PDF in losse pagina’s — snel, veilig en gratis</p>', unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Upload je PDF", type=["pdf"])
+# Upload UI
+st.markdown('<div class="upload-box">', unsafe_allow_html=True)
+uploaded_file = st.file_uploader("📤 Sleep je PDF hier of klik om te uploaden", type=["pdf"])
+st.markdown('</div>', unsafe_allow_html=True)
 
+# Processing
 if uploaded_file:
-    with st.spinner("⏳ PDF wordt gesplitst..."):
+    with st.spinner("⏳ Bezig met splitsen..."):
         with tempfile.TemporaryDirectory() as temp_dir:
             input_path = os.path.join(temp_dir, uploaded_file.name)
 
@@ -24,7 +84,7 @@ if uploaded_file:
             reader = PdfReader(input_path)
             base_name = os.path.splitext(uploaded_file.name)[0]
 
-            pdf_buffers = []  # 👈 hier slaan we alles in geheugen op
+            pdf_buffers = []
 
             # Split PDF
             for i, page in enumerate(reader.pages):
@@ -38,7 +98,7 @@ if uploaded_file:
                 filename = f"{base_name}_page_{i+1}.pdf"
                 pdf_buffers.append((filename, pdf_buffer))
 
-            # ZIP maken in geheugen
+            # ZIP in memory
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w") as zipf:
                 for filename, buffer in pdf_buffers:
@@ -46,9 +106,12 @@ if uploaded_file:
 
             zip_buffer.seek(0)
 
+    # Success message
     st.success(f"✅ Klaar! {len(pdf_buffers)} pagina’s gesplitst.")
 
-    # ZIP download
+    st.markdown("### ⬇️ Download je bestanden")
+
+    # Primary CTA
     st.download_button(
         label="📦 Download alles als ZIP",
         data=zip_buffer,
@@ -57,13 +120,13 @@ if uploaded_file:
     )
 
     st.markdown("---")
-    st.markdown("### 📄 Download losse pagina’s")
 
-    # Individuele downloads (nu uit geheugen)
-    for filename, buffer in pdf_buffers:
-        st.download_button(
-            label=f"Download {filename}",
-            data=buffer,
-            file_name=filename,
-            mime="application/pdf"
-        )
+    # Secondary downloads
+    with st.expander("📄 Of download losse pagina’s"):
+        for filename, buffer in pdf_buffers:
+            st.download_button(
+                label=f"Download {filename}",
+                data=buffer,
+                file_name=filename,
+                mime="application/pdf"
+            )

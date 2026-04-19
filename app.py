@@ -3,18 +3,17 @@ from PyPDF2 import PdfReader, PdfWriter
 import zipfile
 import os
 import tempfile
+import io
 
 # Page config
 st.set_page_config(page_title="PDF Splitter", layout="centered")
 
-# Custom styling
+# Styling
 st.markdown("""
     <style>
-    .main {
-        text-align: center;
-    }
     .block-container {
         padding-top: 2rem;
+        text-align: center;
     }
     .upload-box {
         border: 2px dashed #4CAF50;
@@ -28,10 +27,9 @@ st.markdown("""
 # Title
 st.title("📄 PDF Splitter")
 st.markdown("### Split je PDF in losse pagina’s + download als ZIP")
-
 st.markdown("---")
 
-# Upload section
+# Upload
 st.markdown('<div class="upload-box">', unsafe_allow_html=True)
 uploaded_file = st.file_uploader("📤 Upload je PDF bestand", type=["pdf"])
 st.markdown('</div>', unsafe_allow_html=True)
@@ -41,7 +39,8 @@ if uploaded_file:
     with st.spinner("⏳ PDF wordt gesplitst..."):
         with tempfile.TemporaryDirectory() as temp_dir:
             input_path = os.path.join(temp_dir, uploaded_file.name)
-            
+
+            # Save uploaded file
             with open(input_path, "wb") as f:
                 f.write(uploaded_file.read())
 
@@ -50,6 +49,7 @@ if uploaded_file:
 
             split_files = []
 
+            # Split PDF
             for i, page in enumerate(reader.pages):
                 writer = PdfWriter()
                 writer.add_page(page)
@@ -62,30 +62,30 @@ if uploaded_file:
 
                 split_files.append(output_path)
 
-            zip_path = os.path.join(temp_dir, f"{base_name}_pages.zip")
-            with zipfile.ZipFile(zip_path, 'w') as zipf:
+            # Create ZIP in memory (FIXED!)
+            zip_buffer = io.BytesIO()
+
+            with zipfile.ZipFile(zip_buffer, "w") as zipf:
                 for file in split_files:
                     zipf.write(file, os.path.basename(file))
 
-    st.success(f"✅ Klaar! {len(split_files)} pagina’s gesplitst.")
+            zip_buffer.seek(0)
 
+    st.success(f"✅ Klaar! {len(split_files)} pagina’s gesplitst.")
     st.markdown("### ⬇️ Download je bestanden")
 
     # ZIP download
-    with open(zip_path, "rb") as f:
-        zip_bytes = f.read()
-
     st.download_button(
         label="📦 Download alles als ZIP",
-        data=zip_bytes,
+        data=zip_buffer,
         file_name=f"{base_name}_pages.zip",
         mime="application/zip"
     )
 
     st.markdown("---")
-
-    # Individual files
     st.markdown("### 📄 Of download losse pagina’s")
+
+    # Individual downloads
     for file_path in split_files:
         with open(file_path, "rb") as f:
             st.download_button(

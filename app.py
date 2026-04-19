@@ -73,12 +73,14 @@ if uploaded_file:
 
     # ZIP download
     with open(zip_path, "rb") as f:
-        st.download_button(
-            label="📦 Download alles als ZIP",
-            data=f,
-            file_name=f"{base_name}_pages.zip",
-            mime="application/zip"
-        )
+        zip_bytes = f.read()
+
+    st.download_button(
+        label="📦 Download alles als ZIP",
+        data=zip_bytes,
+        file_name=f"{base_name}_pages.zip",
+        mime="application/zip"
+    )
 
     st.markdown("---")
 
